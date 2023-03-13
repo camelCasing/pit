@@ -1,50 +1,51 @@
 import requests
 import zipfile
 import sys
+import io
 import os
 
 class colours:
-    header = '\033[95m'
-    blue = '\033[94m'
-    cyan = '\033[96m'
-    green = '\033[92m'
-    warn = '\033[93m'
-    error = '\033[91m'
-    end = '\033[0m'
-    bold = '\033[1m'
-    underline = '\033[4m'
+    header = "\033[95m"
+    blue = "\033[94m"
+    cyan = "\033[96m"
+    green = "\033[92m"
+    warn = "\033[93m"
+    error = "\033[91m"
+    end = "\033[0m"
+    bold = "\033[1m"
+    underline = "\033[4m"
 
-def clone(url):
-    url = str(url).replace("github.com", "api.github.com/repos")
-    request = requests.get(url)
+argsIndexIncrement = 0
+
+def clone(args):
+    url = args[2 + argsIndexIncrement]
+    dir = ""
+
+    if len(args) >= 4:
+        dir = args[3 + argsIndexIncrement]
+
+    if url.startswith("https://") == False:
+        url = "https://" + url
 
     try:
-        repo = request.json()
-        cloned = repo["clone_url"]
-        name = repo["name"]
-
-        request = requests.get(url, "/zipball")
-
-        f = open(os.getcwd()+f"/{name}.zip", "wb")
-        f.write(request.content)
-
-        if os.path.exists(os.getcwd()+f"/{name}") == False:
-            os.mkdir(os.getcwd()+f"/{name}")
-
-        zipf = zipfile.ZipFile(os.getcwd()+f"/{name}.zip", "r")
-        zipf.extractall(os.getcwd()+f"/{name}")
-
-        print(f"{colours.green}Successfully{colours.end} cloned {name} to {os.getcwd()+f}/{name}")
-
-
+        r = requests.get(url + "/archive/refs/heads/main.zip")
+        if r.headers['Content-Type'] != 'application/zip':
+            raise Exception("Not a valid zip file")
+        z = zipfile.ZipFile(io.BytesIO(r.content))
+        if dir != "":
+            z.extractall(dir)
+        else:
+            z.extractall(url.split("github.com/")[1].split("/")[0])
+        print(f"{colours.green}cloned repository successfully{colours.end}")
     except Exception as err:
-        print(err)
-# https://api.github.com/repos/username/repo
-def main(args):
-    try:
-        if args[1] == "clone":
-            clone(args[2])
-    except Exception as err:
-        pass
+        print(f"{colours.error}pit encountered an error\n[ clone {err} ]\nplease report this at:\nhttps://github.com/camelCasing/pit/issues{colours.end}")
 
-clone("https://github.com/camelCasing/pit")
+args = sys.argv
+
+try:
+    if args[1 + argsIndexIncrement] == "clone":
+        clone(args)
+    elif args[1 + argsIndexIncrement] == "help":
+        print(f"{colours.green}pit,{colours.end}a python implementation of git.\n\npit help\npit clone <repo-url> <output>")
+except Exception as err:
+    print(f"{colours.error}pit encountered an error\n[ main {err} ]\nplease report this at:\nhttps://github.com/camelCasing/pit/issues{colours.end}")
